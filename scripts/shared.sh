@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # shared build functions used by local and CI scripts
 # (Android port of helium-linux's scripts/shared.sh)
 
@@ -96,7 +97,7 @@ target_os_only = True
 EOF
 
     (
-        cd "${_build_dir}"
+        cd "${_build_dir}" || exit 1
         if [ ! -d "${_src_dir}/.git" ]; then
             git clone --depth 1 --no-tags \
                 --branch "${_chromium_version}" \
@@ -200,12 +201,12 @@ fix_tool_downloading() {
 
 gn_gen() {
     ensure_depot_tools
-    cd "${_src_dir}"
+    cd "${_src_dir}" || return 1
     gn gen out/Default --fail-on-unused-args
 }
 
 build() {
     ensure_depot_tools
-    cd "${_src_dir}"
+    cd "${_src_dir}" || return 1
     autoninja -C out/Default chrome_public_apk
 }

@@ -2,6 +2,7 @@
 # CI entrypoint, executed inside the docker build image
 set -euxo pipefail
 
+# shellcheck source=scripts/shared.sh
 . "/repo/scripts/shared.sh"
 
 setup_environment

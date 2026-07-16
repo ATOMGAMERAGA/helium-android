@@ -2,6 +2,7 @@
 # installs the built APK on a connected device/emulator and launches it
 set -euo pipefail
 
+# shellcheck source=scripts/shared.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/shared.sh"
 
 setup_environment

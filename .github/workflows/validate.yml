@@ -22,7 +22,7 @@ jobs:
       - name: shellcheck
         run: |
           sudo apt-get update && sudo apt-get -y install shellcheck
-          shellcheck -S warning scripts/*.sh .github/scripts/*.sh
+          shellcheck -x -P . -S warning scripts/*.sh .github/scripts/*.sh
 
   patches:
     name: Patches apply to pinned Chromium
