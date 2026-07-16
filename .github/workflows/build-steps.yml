@@ -53,6 +53,7 @@ jobs:
       - name: Prepare build tree
         uses: ./.github/actions/build
         with:
+          arch: ${{ inputs.arch }}
           prepare-only: true
 
   build_part_01:
@@ -65,6 +66,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_02:
     runs-on: ${{ inputs.runs-on }}
@@ -77,6 +80,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_03:
     runs-on: ${{ inputs.runs-on }}
@@ -89,6 +94,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_04:
     runs-on: ${{ inputs.runs-on }}
@@ -101,6 +108,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_05:
     runs-on: ${{ inputs.runs-on }}
@@ -113,6 +122,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_06:
     runs-on: ${{ inputs.runs-on }}
@@ -125,6 +136,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_07:
     runs-on: ${{ inputs.runs-on }}
@@ -137,6 +150,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_08:
     runs-on: ${{ inputs.runs-on }}
@@ -149,6 +164,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_09:
     runs-on: ${{ inputs.runs-on }}
@@ -161,6 +178,8 @@ jobs:
         with: { submodules: true }
       - uses: ./.github/actions/build
         id: build
+        with:
+          arch: ${{ inputs.arch }}
 
   build_part_10:
     runs-on: ${{ inputs.runs-on }}
@@ -170,7 +189,9 @@ jobs:
       - uses: actions/checkout@v4
         with: { submodules: true }
       - uses: ./.github/actions/build
-        with: { final: true }
+        with:
+          arch: ${{ inputs.arch }}
+          final: true
 
   package:
     name: Package APK
