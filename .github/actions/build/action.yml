@@ -1,0 +1,87 @@
+name: "Build Helium APK stage"
+description: >
+  Run a single resumable build stage inside the pre-built Helium builder
+  image. Loads the builder image artifact, restores the build tree from
+  the previous stage (except when preparing), runs the CI build entrypoint
+  in the container, then persists the build tree for the next stage.
+
+inputs:
+  arch:
+    description: "Target Android arch (arm64, arm, x64, x86)."
+    required: true
+  prepare-only:
+    description: >
+      Only fetch sources, apply patches and run 'gn gen' -- no compilation.
+    required: false
+    default: "false"
+  final:
+    description: >
+      Final compile stage: treat a compile timeout as a failure instead of
+      signalling the build should resume in a following stage.
+    required: false
+    default: "false"
+
+outputs:
+  status:
+    description: >
+      'running' when the stage timed out and should be resumed by the next
+      stage, 'completed' once the APK has been produced. Empty otherwise.
+    value: ${{ steps.run.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download builder image
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image-${{ inputs.arch }}
+        path: /tmp
+
+    - name: Load builder image
+      shell: bash
+      run: docker load -i /tmp/helium-android-builder.tar
+
+    - name: Free up runner space
+      if: runner.environment == 'github-hosted'
+      shell: bash
+      run: bash ./.github/scripts/cleanup.sh
+
+    - name: Download build tree
+      if: inputs.prepare-only != 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: build-cache-${{ inputs.arch }}
+        path: .github/cache/
+
+    - name: Import build tree
+      if: inputs.prepare-only != 'true'
+      shell: bash
+      env:
+        ARCH: ${{ inputs.arch }}
+      run: bash ./.github/scripts/import-cache.sh
+
+    - name: Run build stage
+      id: run
+      shell: bash
+      env:
+        CI: "true"
+        ARCH: ${{ inputs.arch }}
+        _use_existing_image: "1"
+        _runner_environment: ${{ runner.environment }}
+        _prepare_only: ${{ inputs.prepare-only == 'true' && 'true' || '' }}
+        _gha_final: ${{ inputs.final == 'true' && 'true' || '' }}
+      run: bash ./scripts/docker-build.sh
+
+    - name: Export build tree
+      shell: bash
+      env:
+        ARCH: ${{ inputs.arch }}
+      run: bash ./.github/scripts/export-cache.sh
+
+    - name: Upload build tree
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-cache-${{ inputs.arch }}
+        path: .github/cache/build-cache-${{ inputs.arch }}.tar.zst
+        retention-days: 1
+        overwrite: true
