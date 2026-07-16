@@ -1,0 +1,136 @@
+name: Validate
+
+# fast checks that run on free runners: patch application against the
+# real pinned Chromium sources, icon generation, resource mapping, and
+# shell script health. Manually triggerable and run on every push/PR.
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get -y install shellcheck
+          shellcheck -S warning scripts/*.sh .github/scripts/*.sh
+
+  patches:
+    name: Patches apply to pinned Chromium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+
+      - name: Check series file
+        run: |
+          while read -r p; do
+            [ -z "$p" ] && continue
+            [[ "$p" == \#* ]] && continue
+            if [ ! -f "patches/$p" ]; then
+              echo "missing patch: $p" >&2
+              exit 1
+            fi
+          done < patches/series
+
+      - name: Fetch patched files from the pinned Chromium tag
+        run: |
+          version="$(cat helium-chromium/chromium_version.txt)"
+          echo "chromium $version"
+          mkdir -p mocksrc
+          # every file touched by our patch series
+          grep -h '^--- a/' patches/helium/android/*.patch | sed 's|^--- a/||' | sort -u | while read -r f; do
+            mkdir -p "mocksrc/$(dirname "$f")"
+            curl -sf "https://chromium.googlesource.com/chromium/src/+/refs/tags/$version/$f?format=TEXT" \
+              | base64 -d > "mocksrc/$f"
+            echo "fetched $f"
+          done
+
+      - name: Apply android patches
+        run: python3 helium-chromium/utils/patches.py apply mocksrc patches
+
+  resources:
+    name: Icons and resource mapping
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+
+      - name: Install Pillow
+        run: pip install pillow
+
+      - name: Regenerate icons and compare dimensions
+        run: |
+          python3 devutils/generate_android_icons.py --output /tmp/icons
+          python3 - <<'EOF'
+          import pathlib, sys
+          from PIL import Image
+
+          committed = pathlib.Path('resources/android')
+          fresh = pathlib.Path('/tmp/icons')
+          errors = 0
+          for new in sorted(fresh.rglob('*.png')):
+              old = committed / new.relative_to(fresh)
+              if not old.exists():
+                  print(f'MISSING in repo: {old}'); errors += 1; continue
+              a, b = Image.open(old), Image.open(new)
+              if a.size != b.size:
+                  print(f'SIZE MISMATCH {old}: {a.size} != {b.size}'); errors += 1
+          sys.exit(1 if errors else 0)
+          EOF
+
+      - name: Check resource mapping list
+        run: |
+          while read -r line; do
+            [ -z "$line" ] && continue
+            [[ "$line" == \#* ]] && continue
+            src="${line%% *}"
+            if [ ! -f "resources/$src" ]; then
+              echo "missing resource: resources/$src" >&2
+              exit 1
+            fi
+          done < resources/android_resources.txt
+
+      - name: Verify mapped destinations exist in the pinned Chromium tag
+        run: |
+          version="$(cat helium-chromium/chromium_version.txt)"
+          awk '!/^#/ && NF == 2 { print $2 }' resources/android_resources.txt | while read -r dst; do
+            if ! curl -sf -o /dev/null "https://chromium.googlesource.com/chromium/src/+/refs/tags/$version/$dst?format=TEXT"; then
+              echo "destination missing in chromium $version: $dst" >&2
+              exit 1
+            fi
+          done
+
+  gn-flags:
+    name: GN flags are well-formed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+
+      - name: Syntax-check combined GN args
+        run: |
+          cat helium-chromium/flags.gn flags.android.gn | while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            [[ "$line" == \#* ]] && continue
+            if ! [[ "$line" =~ ^[a-z0-9_]+[[:space:]]*=[[:space:]]*.+$ ]]; then
+              echo "malformed GN line: $line" >&2
+              exit 1
+            fi
+          done
+          # no duplicate assignments between shared and android flags
+          dupes=$(cat helium-chromium/flags.gn flags.android.gn \
+            | grep -v '^#' | grep -oE '^[a-z0-9_]+' | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "duplicate GN args: $dupes" >&2
+            exit 1
+          fi

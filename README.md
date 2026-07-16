@@ -117,11 +117,27 @@ export HELIUM_KEY_ALIAS="..."   # optional if the keystore has one key
 ```
 
 ### CI
-[`build.yml`](.github/workflows/build.yml) builds APKs for each requested
-arch and can create a GitHub release. Note that a full Chromium build
-exceeds the limits of free GitHub-hosted runners — use a large self-hosted
-runner (upstream Helium uses [Depot](https://depot.dev/)-sponsored
-runners for the same reason).
+Both workflows are manually triggerable from the Actions tab
+(`workflow_dispatch`):
+
+- [`build.yml`](.github/workflows/build.yml) builds APKs for each requested
+  arch and publishes them as assets of a GitHub release (on by default).
+  The build is split into up to 10 resumable ~5 h stages that hand the
+  build tree to each other as artifacts — the same pattern
+  [helium-linux](https://github.com/imputnet/helium-linux) uses to fit a
+  full Chromium build into GitHub's 6-hour job limit on free runners.
+  A large runner (self-hosted, or e.g. [Depot](https://depot.dev/), which
+  sponsors upstream Helium's builders) finishes in a single stage; pass its
+  label in the `runner` input.
+- [`validate.yml`](.github/workflows/validate.yml) runs in minutes on free
+  runners: applies the Android patches to the real pinned Chromium sources,
+  regenerates the icons, verifies every resource-mapping destination exists
+  in the pinned Chromium tag, checks the GN flags, and shellchecks the
+  scripts. It also runs on every push and pull request.
+
+To sign release APKs in CI, set the `HELIUM_KEYSTORE_B64`,
+`HELIUM_KEYSTORE_PASSWORD`, and (optionally) `HELIUM_KEY_ALIAS` repository
+secrets; without them, APKs keep the default debug signature.
 
 ## Updating to a new Helium/Chromium version
 1. Update the submodule: `git -C helium-chromium pull origin main`

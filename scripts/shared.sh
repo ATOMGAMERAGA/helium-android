@@ -57,6 +57,14 @@ setup_environment() {
     export DEPOT_TOOLS_METRICS=0
 }
 
+ensure_depot_tools() {
+    if [ ! -d "${_depot_tools}" ]; then
+        git clone --depth 1 \
+            https://chromium.googlesource.com/chromium/tools/depot_tools.git \
+            "${_depot_tools}"
+    fi
+}
+
 # Android needs a gclient checkout: the SDK, NDK and several
 # android-only third_party dependencies are delivered through DEPS
 # hooks and aren't part of the release tarball that the desktop
@@ -69,11 +77,7 @@ fetch_sources() {
         return 0
     fi
 
-    if [ ! -d "${_depot_tools}" ]; then
-        git clone --depth 1 \
-            https://chromium.googlesource.com/chromium/tools/depot_tools.git \
-            "${_depot_tools}"
-    fi
+    ensure_depot_tools
 
     cat > "${_build_dir}/.gclient" <<EOF
 solutions = [
@@ -195,11 +199,13 @@ fix_tool_downloading() {
 }
 
 gn_gen() {
+    ensure_depot_tools
     cd "${_src_dir}"
     gn gen out/Default --fail-on-unused-args
 }
 
 build() {
+    ensure_depot_tools
     cd "${_src_dir}"
     autoninja -C out/Default chrome_public_apk
 }

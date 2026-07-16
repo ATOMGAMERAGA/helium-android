@@ -14,16 +14,18 @@ on:
       do-release:
         required: false
         type: boolean
-        description: "Create a release after build is done"
-        default: false
+        description: "Create a release (with the APKs attached) after build is done"
+        default: true
 
 permissions:
   contents: write
 
-# NOTE: a full Chromium build takes 6-10+ hours and ~200 GB of disk on a
-# standard github-hosted runner, which exceeds the free runner limits.
-# Use a large self-hosted runner or a service like Depot (which sponsors
-# upstream Helium's builders) for release builds.
+# The build is split into resumable stages (see build-steps.yml): each
+# stage compiles for up to 5 hours, exports the build tree as an
+# artifact, and the next stage picks it up -- the same pattern
+# helium-linux uses to fit a full Chromium build into GitHub's
+# 6-hour job limit. A large runner (self-hosted or e.g. Depot)
+# finishes in a single stage.
 
 jobs:
   setup:
@@ -38,46 +40,16 @@ jobs:
   build:
     name: Build Helium APK (${{ matrix.arch }})
     needs: setup
-    runs-on: ${{ inputs.runner }}
     strategy:
       matrix:
         arch: ${{ fromJSON(needs.setup.outputs.matrix) }}
+      max-parallel: 2
       fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-              /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
-              /usr/local/.ghcup /usr/share/swift || true
-          df -h
-
-      - name: Expose GitHub runtime for sccache
-        uses: crazy-max/ghaction-github-runtime@v3
-
-      - name: Build
-        env:
-          CI: "1"
-          ARCH: ${{ matrix.arch }}
-        run: ./scripts/docker-build.sh
-
-      - name: Package
-        env:
-          HELIUM_KEYSTORE_B64: ${{ secrets.HELIUM_KEYSTORE_B64 }}
-          HELIUM_KEYSTORE_PASSWORD: ${{ secrets.HELIUM_KEYSTORE_PASSWORD }}
-          HELIUM_KEY_ALIAS: ${{ secrets.HELIUM_KEY_ALIAS }}
-        run: ./scripts/package.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: helium-android-${{ matrix.arch }}
-          path: |
-            build/release/*.apk
-            build/release/*.sha256
-          if-no-files-found: error
+    uses: ./.github/workflows/build-steps.yml
+    secrets: inherit
+    with:
+      arch: ${{ matrix.arch }}
+      runs-on: ${{ inputs.runner }}
 
   release:
     name: Create release
@@ -87,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
 
       - name: Determine version
         id: version
@@ -97,6 +69,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          pattern: helium-android-*
           path: dist
           merge-multiple: true
 
@@ -105,6 +78,18 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
           prerelease: true
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          body: |
+            Helium for Android ${{ steps.version.outputs.version }}
+
+            | dosya | ABI |
+            | --- | --- |
+            | `*-arm64_android.apk` | arm64-v8a (çoğu modern cihaz) |
+            | `*-arm_android.apk` | armeabi-v7a (eski 32-bit cihazlar) |
+            | `*-x64_android.apk` | x86_64 (emülatörler) |
+
+            İndirdikten sonra `.sha256` dosyasıyla doğrulayın.
           files: |
             dist/*.apk
             dist/*.sha256

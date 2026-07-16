@@ -32,8 +32,12 @@ fi
 
 # forward relevant envs when set
 _extra_env=()
+[ -n "${_prepare_only:-}" ] && _extra_env+=(-e "_prepare_only")
+[ -n "${_gha_final:-}" ] && _extra_env+=(-e _gha_final)
+[ -n "${_runner_environment:-}" ] && _extra_env+=(-e _runner_environment)
 [ -n "${GITHUB_OUTPUT:-}" ] && _extra_env+=(-e GITHUB_OUTPUT)
 [ -n "${ARCH:-}" ] && _extra_env+=(-e ARCH)
+[ -n "${INSTALL_BUILD_DEPS:-}" ] && _extra_env+=(-e INSTALL_BUILD_DEPS)
 
 for sccache_env_name in $(env | grep ^SCCACHE_ | cut -d= -f1); do
     _extra_env+=(-e "$sccache_env_name")
