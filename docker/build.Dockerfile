@@ -31,7 +31,8 @@ RUN tar --strip-components=1 -xvzf /tmp/sccache.tar.gz \
     -C /usr/bin --wildcards '*/sccache'
 
 # create builder user with passwordless sudo (needed by install-build-deps)
-RUN groupadd -g ${GID} builder && useradd -d /home/builder -g ${GID} -u ${UID} -m builder && \
+RUN (getent group ${GID} >/dev/null || groupadd -g ${GID} builder) && \
+    useradd -d /home/builder -g ${GID} -u ${UID} -m builder && \
     echo 'builder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/builder
 
 USER builder
