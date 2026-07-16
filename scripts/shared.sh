@@ -64,6 +64,18 @@ ensure_depot_tools() {
             https://chromium.googlesource.com/chromium/tools/depot_tools.git \
             "${_depot_tools}"
     fi
+
+    # depot_tools' wrappers (gn, python3, ...) run out of a CIPD-managed
+    # python that has to be fetched once. gclient sync doesn't do it while
+    # DEPOT_TOOLS_UPDATE=0 (set in setup_environment to avoid a self-update
+    # on every invocation), so the gn wrapper otherwise fails with
+    # "python3_bin_reldir.txt not found". ensure_bootstrap downloads those
+    # bootstrap programs for the current checkout without updating
+    # depot_tools itself; run it when the managed python isn't present yet.
+    if [ ! -x "${_depot_tools}/python-bin/python3" ] \
+        && [ -x "${_depot_tools}/ensure_bootstrap" ]; then
+        "${_depot_tools}/ensure_bootstrap"
+    fi
 }
 
 # Android needs a gclient checkout: the SDK, NDK and several
