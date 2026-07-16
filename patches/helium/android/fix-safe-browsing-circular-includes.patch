@@ -1,0 +1,23 @@
+# Drop the safe_browsing entry from the Android-only
+# allow_circular_includes_from list of chrome/browser's :browser target.
+#
+# ungoogled-chromium's fix-building-without-safebrowsing.patch removes
+# //chrome/browser/safe_browsing from the target's deps, but it only
+# adjusts the desktop code paths and leaves this is_android block alone.
+# With safe_browsing_mode=0 the label is therefore listed in
+# allow_circular_includes_from while no longer being a dep, so gn gen
+# aborts with:
+#   ERROR Label not in deps.
+#   The label "//chrome/browser/safe_browsing:safe_browsing"
+#   was not in the deps of this target.
+
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -2759,7 +2759,6 @@
+       "//chrome/browser/profiles:misc",
+       "//chrome/browser/profiles:profiles_extra_parts_impl",
+       "//chrome/browser/push_messaging:impl",
+-      "//chrome/browser/safe_browsing",
+       "//chrome/browser/signin:impl",
+       "//chrome/browser/sync",
+       "//chrome/browser/task_manager:impl",
