@@ -66,13 +66,15 @@ ensure_depot_tools() {
     fi
 
     # depot_tools' wrappers (gn, python3, ...) run out of a CIPD-managed
-    # python that has to be fetched once. gclient sync doesn't do it while
+    # python whose location is recorded in python3_bin_reldir.txt. That file
+    # is written by the one-time bootstrap, which gclient sync skips while
     # DEPOT_TOOLS_UPDATE=0 (set in setup_environment to avoid a self-update
-    # on every invocation), so the gn wrapper otherwise fails with
-    # "python3_bin_reldir.txt not found". ensure_bootstrap downloads those
-    # bootstrap programs for the current checkout without updating
-    # depot_tools itself; run it when the managed python isn't present yet.
-    if [ ! -x "${_depot_tools}/python-bin/python3" ] \
+    # on every invocation) -- so the gn wrapper otherwise fails with
+    # "python3_bin_reldir.txt not found". ensure_bootstrap fetches those
+    # programs for the current checkout without updating depot_tools itself;
+    # run it when that marker is missing. (python-bin/python3 is a checked-in
+    # wrapper, so it can't be used to detect whether the bootstrap has run.)
+    if [ ! -f "${_depot_tools}/python3_bin_reldir.txt" ] \
         && [ -x "${_depot_tools}/ensure_bootstrap" ]; then
         "${_depot_tools}/ensure_bootstrap"
     fi
