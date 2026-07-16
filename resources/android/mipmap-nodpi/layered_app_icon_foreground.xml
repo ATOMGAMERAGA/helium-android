@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Helium Authors
+You can use, redistribute, and/or modify this source code under
+the terms of the GPL-3.0 license that can be found in the LICENSE file.
+
+The Helium artwork lives in the adaptive icon *background* layer
+(layered_app_icon_background.png), matching how Chromium structures
+its layered icon, so the foreground stays transparent.
+-->
+
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@android:color/transparent" />
+</shape>

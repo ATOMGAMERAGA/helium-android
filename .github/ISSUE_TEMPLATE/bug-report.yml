@@ -1,0 +1,67 @@
+name: Bug Report
+description: Report a bug building or running Helium for Android
+labels: ["bug"]
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting this bug report, please search existing issues and make sure it's unique.
+
+        If you suspect your bug might apply to all platforms and not just Android,
+        please submit it to the shared [helium](https://github.com/imputnet/helium) repository instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Can be copied from helium://settings/help
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      description: e.g. Pixel 8, Android 15
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Have you tested that this is not an upstream issue?
+      options:
+        - label: I have tried reproducing this issue in Chrome/Chromium for Android and it could not be reproduced there
+  - type: input
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description (in one line) of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to Reproduce?
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Tap on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here. If applicable, add screenshots.
