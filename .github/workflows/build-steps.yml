@@ -32,12 +32,27 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # The build runs inside the container as the host runner's UID/GID
+      # (see scripts/docker-build.sh), so the image's 'builder' user must
+      # be created with those same IDs -- otherwise HOME and passwordless
+      # sudo resolve to a user that doesn't exist and the build fails with
+      # permission errors. The local build path already matches IDs this
+      # way; do the same for the image we bake in CI.
+      - name: Resolve runner UID/GID
+        id: ids
+        run: |
+          echo "uid=$(id -u)" >> "$GITHUB_OUTPUT"
+          echo "gid=$(id -g)" >> "$GITHUB_OUTPUT"
+
       - name: Build and cache Docker image
         id: build-image
         uses: docker/build-push-action@v5
         with:
           context: ./docker
           file: ./docker/build.Dockerfile
+          build-args: |
+            UID=${{ steps.ids.outputs.uid }}
+            GID=${{ steps.ids.outputs.gid }}
           tags: helium-android-builder:trixie-slim
           outputs: type=docker,dest=/tmp/helium-android-builder.tar
           cache-from: type=gha
