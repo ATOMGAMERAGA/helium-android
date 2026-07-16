@@ -1,0 +1,95 @@
+name: Build Android release
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        required: false
+        description: "Runner image/label to use"
+        default: "ubuntu-latest"
+      archs:
+        required: false
+        description: "Space-separated target archs (arm64 arm x64 x86)"
+        default: "arm64 arm"
+      do-release:
+        required: false
+        type: boolean
+        description: "Create a release (with the APKs attached) after build is done"
+        default: true
+
+permissions:
+  contents: write
+
+# The build is split into resumable stages (see build-steps.yml): each
+# stage compiles for up to 5 hours, exports the build tree as an
+# artifact, and the next stage picks it up -- the same pattern
+# helium-linux uses to fit a full Chromium build into GitHub's
+# 6-hour job limit. A large runner (self-hosted or e.g. Depot)
+# finishes in a single stage.
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.archs.outputs.matrix }}
+    steps:
+      - id: archs
+        run: |
+          echo "matrix=$(echo '${{ inputs.archs }}' | tr -s ' ' '\n' | jq -cRn '[inputs | select(length > 0)]')" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build Helium APK (${{ matrix.arch }})
+    needs: setup
+    strategy:
+      matrix:
+        arch: ${{ fromJSON(needs.setup.outputs.matrix) }}
+      max-parallel: 2
+      fail-fast: false
+    uses: ./.github/workflows/build-steps.yml
+    secrets: inherit
+    with:
+      arch: ${{ matrix.arch }}
+      runs-on: ${{ inputs.runner }}
+
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ inputs.do-release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Determine version
+        id: version
+        run: |
+          echo "version=$(python3 helium-chromium/utils/helium_version.py \
+              --tree helium-chromium --platform-tree . --print)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: helium-android-*
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          prerelease: true
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          body: |
+            Helium for Android ${{ steps.version.outputs.version }}
+
+            | dosya | ABI |
+            | --- | --- |
+            | `*-arm64_android.apk` | arm64-v8a (çoğu modern cihaz) |
+            | `*-arm_android.apk` | armeabi-v7a (eski 32-bit cihazlar) |
+            | `*-x64_android.apk` | x86_64 (emülatörler) |
+
+            İndirdikten sonra `.sha256` dosyasıyla doğrulayın.
+          files: |
+            dist/*.apk
+            dist/*.sha256

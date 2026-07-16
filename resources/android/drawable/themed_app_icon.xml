@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Helium Authors
+You can use, redistribute, and/or modify this source code under
+the terms of the GPL-3.0 license that can be found in the LICENSE file.
+
+Monochrome (themed/Material You) launcher icon: the Helium star from
+resources/branding/product_logo.svg (256x256 viewport), scaled into the
+36dp safe square at the center of the 90dp adaptive canvas.
+-->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="90dp"
+    android:height="90dp"
+    android:viewportWidth="90"
+    android:viewportHeight="90">
+    <group>
+        <clip-path
+            android:pathData="M27,27h36v36h-36z"/>
+        <group
+            android:scaleX="0.193548"
+            android:scaleY="0.193548"
+            android:translateX="20.2258"
+            android:translateY="20.2258">
+            <path
+                android:pathData="M145.966,207.813L128,221L110.034,207.813L118.198,144.891L67.469,183.379L47,174.5L49.499,152.438L108.391,128L49.499,103.562L47,81.5L67.469,72.621L118.198,111.109L110.034,48.187L128,35L145.966,48.187L137.802,111.109L188.531,72.621L209,81.5L206.501,103.562L147.609,128L206.501,152.438L209,174.5L188.531,183.379L137.802,144.891Z"
+                android:fillColor="#000000"/>
+        </group>
+    </group>
+</vector>

@@ -1,0 +1,15 @@
+target_os = "android"
+is_official_build = true
+is_debug = false
+is_component_build = false
+symbol_level = 1
+blink_symbol_level = 0
+blink_enable_generated_code_formatting = false
+ffmpeg_branding = "Chrome"
+proprietary_codecs = true
+dfmify_dev_ui = false
+chrome_public_manifest_package = "net.imput.helium"
+enable_vr = false
+enable_arcore = false
+enable_cardboard = false
+enable_openxr = false
