@@ -1,1 +1,2 @@
 helium/android/change-android-branding.patch
+helium/android/fix-safe-browsing-circular-includes.patch
