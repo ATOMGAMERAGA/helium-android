@@ -47,13 +47,34 @@ jobs:
           version="$(cat helium-chromium/chromium_version.txt)"
           echo "chromium $version"
           mkdir -p mocksrc
+
+          # gitiles rate-limits rapid sequential requests, so a bare
+          # 'curl -sf' loop fails intermittently on 429/5xx. Retry with
+          # backoff and only give up on a definitive 404.
+          fetch_file() {  # $1 = repo-relative path
+            local f="$1" url attempt code
+            url="https://chromium.googlesource.com/chromium/src/+/refs/tags/$version/$f?format=TEXT"
+            for attempt in 1 2 3 4 5 6; do
+              code=$(curl -s -o "mocksrc/$f.b64" -w '%{http_code}' "$url" || echo 000)
+              if [ "$code" = 200 ]; then
+                base64 -d < "mocksrc/$f.b64" > "mocksrc/$f"
+                rm -f "mocksrc/$f.b64"
+                return 0
+              fi
+              [ "$code" = 404 ] && break
+              sleep $((attempt * attempt))
+            done
+            echo "failed to fetch $f (last HTTP $code)" >&2
+            return 1
+          }
+
           # every file touched by our patch series
-          grep -h '^--- a/' patches/helium/android/*.patch | sed 's|^--- a/||' | sort -u | while read -r f; do
+          while read -r f; do
             mkdir -p "mocksrc/$(dirname "$f")"
-            curl -sf "https://chromium.googlesource.com/chromium/src/+/refs/tags/$version/$f?format=TEXT" \
-              | base64 -d > "mocksrc/$f"
+            fetch_file "$f"
             echo "fetched $f"
-          done
+          done < <(grep -h '^--- a/' patches/helium/android/*.patch \
+                   | sed 's|^--- a/||' | sort -u)
 
       - name: Apply android patches
         run: python3 helium-chromium/utils/patches.py apply mocksrc patches
@@ -103,12 +124,37 @@ jobs:
       - name: Verify mapped destinations exist in the pinned Chromium tag
         run: |
           version="$(cat helium-chromium/chromium_version.txt)"
-          awk '!/^#/ && NF == 2 { print $2 }' resources/android_resources.txt | while read -r dst; do
-            if ! curl -sf -o /dev/null "https://chromium.googlesource.com/chromium/src/+/refs/tags/$version/$dst?format=TEXT"; then
-              echo "destination missing in chromium $version: $dst" >&2
-              exit 1
-            fi
-          done
+
+          # gitiles rate-limits rapid sequential requests, so a bare
+          # 'curl -sf' loop reports false "missing" failures on 429/5xx.
+          # Retry with backoff; only a definitive 404 counts as missing,
+          # and a persistently indeterminate response is a warning (so a
+          # rate-limited run never fails the build spuriously).
+          verify() {  # 0=exists, 1=missing(404), 2=indeterminate
+            local url="$1" attempt code
+            for attempt in 1 2 3 4 5 6; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$url" || echo 000)
+              case "$code" in
+                200) return 0 ;;
+                404) return 1 ;;
+                *) sleep $((attempt * attempt)) ;;
+              esac
+            done
+            return 2
+          }
+
+          rc=0
+          while read -r dst; do
+            url="https://chromium.googlesource.com/chromium/src/+/refs/tags/$version/$dst?format=TEXT"
+            r=0
+            verify "$url" || r=$?
+            case "$r" in
+              0) ;;
+              1) echo "destination missing in chromium $version: $dst" >&2; rc=1 ;;
+              *) echo "warning: could not verify (transient) $dst" >&2 ;;
+            esac
+          done < <(awk '!/^#/ && NF == 2 { print $2 }' resources/android_resources.txt)
+          exit $rc
 
   gn-flags:
     name: GN flags are well-formed
