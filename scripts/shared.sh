@@ -94,6 +94,16 @@ fetch_sources() {
 
     ensure_depot_tools
 
+    # NOTE: we deliberately do NOT set target_os_only here. An Android
+    # build still links host tooling (protoc, build metagenerators, v8
+    # snapshot, ...) with the host clang_x64 toolchain, which requires the
+    # Debian amd64 sysroot. That sysroot is fetched by the DEPS
+    # install-sysroot hook, but only when checkout_linux is enabled --
+    # and target_os_only = True would disable it (checkout_linux only
+    # tracks the host OS when it isn't suppressed). Leaving target_os_only
+    # unset keeps the host (linux) deps alongside the android ones, so
+    # 'gclient runhooks' installs the sysroot and 'gn gen' no longer fails
+    # with "Missing sysroot (//build/linux/debian_bullseye_amd64-sysroot)".
     cat > "${_build_dir}/.gclient" <<EOF
 solutions = [
   {
@@ -107,7 +117,6 @@ solutions = [
   },
 ]
 target_os = ["android"]
-target_os_only = True
 EOF
 
     (
